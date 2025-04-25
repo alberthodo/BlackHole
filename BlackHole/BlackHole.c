@@ -249,6 +249,10 @@ struct ObjectInfo {
 #define                             kCanBeDefaultSystemDevice           true
 #endif
 
+// Audio source types
+#define                             kAudioSource_Mic                    1
+#define                             kAudioSource_System                 2
+
 static pthread_mutex_t              gPlugIn_StateMutex                  = PTHREAD_MUTEX_INITIALIZER;
 static UInt32                       gPlugIn_RefCount                    = 0;
 static AudioServerPlugInHostRef     gPlugIn_Host                        = NULL;
@@ -4573,13 +4577,22 @@ static OSStatus	BlackHole_DoIOOperation(AudioServerPlugInDriverRef inDriver, Aud
 	 	vDSP_vsmul(ioMainBuffer, 1, &gVolume_Master_Value, ioMainBuffer, 1, inIOBufferFrameSize * kNumber_Of_Channels);
 	    }
 
+            // Add metadata based on the source type
+            if (inDeviceObjectID == kObjectID_Device) {
+                // This is system audio
+                char* metadata = "source=system";
+                memcpy((char*)ioMainBuffer + (inIOBufferFrameSize * kNumber_Of_Channels * sizeof(Float32)), metadata, strlen(metadata) + 1);
+            } else if (inDeviceObjectID == kObjectID_Device2) {
+                // This is mic audio
+                char* metadata = "source=mic";
+                memcpy((char*)ioMainBuffer + (inIOBufferFrameSize * kNumber_Of_Channels * sizeof(Float32)), metadata, strlen(metadata) + 1);
+            }
         }
     }
     
     // From Application to BlackHole
     if(inOperationID == kAudioServerPlugInIOOperationWriteMix)
     {
-        
         // Overload error.
         if (inIOCycleInfo->mCurrentTime.mSampleTime > inIOCycleInfo->mOutputTime.mSampleTime + inIOBufferFrameSize + kLatency_Frame_Size)
         {
